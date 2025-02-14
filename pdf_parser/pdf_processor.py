@@ -152,7 +152,7 @@ class PDFTextProcessor(PDFTextProcessorUtilsBase):
             cls,
             file_path: str,
 
-            char_spacing_x: float = 2.0,
+            char_spacing_x: float = 1.8,
             char_spacing_y: float = 1.0,
             word_spacing_x: float = 3.0,
             word_spacing_y: float = 1.5,
