@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pdf_parser"
+version = "0.1.0"
+description = "A Python package for parsing and processing PDFs, including table extraction and cleaning."
+readme = "README.md"
+authors = [{ name = "Greggory Zinniel", email = "gzinniel.github@gmail.com" }]
+license = { file = "LICENSE" }
+dependencies = [
+    "pandas",
+    "pdfplumber",
+    "numpy"
+]  # Add more dependencies as needed
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pdf_parser", "pdf_parser.*"]
+
+[tool.setuptools.package-data]
+"pdf_parser" = ["*.json", "*.csv"]  # Include extra files if needed (e.g., configs)
+
+[project.optional-dependencies]
+dev = ["pytest", "black", "flake8", "mypy"]
+
+[tool.black]
+line-length = 88
+target-version = ['py39']
+
+[tool.flake8]
+max-line-length = 88
+
+[tool.mypy]
+ignore_missing_imports = true
