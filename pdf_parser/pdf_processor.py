@@ -154,7 +154,7 @@ class PDFTextProcessor(PDFTextProcessorUtilsBase):
 
             char_spacing_x: float = 1.8,
             char_spacing_y: float = 1.0,
-            word_spacing_x: float = 3.0,
+            word_spacing_x: float = 2.8,
             word_spacing_y: float = 1.5,
 
             align_columns_x: list = ["x0", "x1"],
