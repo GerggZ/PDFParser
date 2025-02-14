@@ -19,7 +19,7 @@ class PDFTextProcessorUtilsBase:
 
     def __getitem__(self, key):
         """Allows DataFrame-like indexing: pdf_data['column'] or pdf_data[condition]"""
-        return PDFTextProcessor.from_dataframe(self.word_data_df[key])
+        return PDFTextProcessor.from_dataframe(self.df[key])
 
     def __getattr__(self, attr):
         """Delegates attribute access to the internal DataFrame"""
@@ -32,6 +32,10 @@ class PDFTextProcessorUtilsBase:
         instance.pdf_path = None
         instance.word_data_df = df
         return instance
+
+    def to_dict(self):
+        """Converts the extracted data to a dictionary."""
+        return self.df.to_dict(orient="records")
 
     def text(self):
         """Returns the text of the dataframe, with returns between lines"""
@@ -75,7 +79,9 @@ class PDFTextProcessor(PDFTextProcessorUtilsBase):
             per_page_x: bool = False,
             per_page_y: bool = True,
             norm_threshold_x: float = 1.5,
-            norm_threshold_y: float = 0.75
+            norm_threshold_y: float = 0.75,
+
+            verbose: float = False
     ):
         self._char_spacing_x = char_spacing_x
         self._char_spacing_y = char_spacing_y
@@ -91,6 +97,8 @@ class PDFTextProcessor(PDFTextProcessorUtilsBase):
         self._align_threshold_x = norm_threshold_x
         self._align_threshold_y = norm_threshold_y
 
+        self.verbose = verbose
+
         if file_path.endswith(".csv"):
             self.df = pd.read_csv(file_path)
         else:
@@ -101,7 +109,11 @@ class PDFTextProcessor(PDFTextProcessorUtilsBase):
         word_data_dict = []
 
         with pdfplumber.open(file_path) as pdf:
-            for page_num, page in tqdm(enumerate(pdf.pages, start=1), desc="Parsing PDF Text", total=len(pdf.pages)):
+            pages_iter = enumerate(pdf.pages, start=1)
+            if self.verbose:
+                pages_iter = tqdm(pages_iter, desc="Parsing PDF Text", total=len(pdf.pages))
+
+            for page_num, page in pages_iter:
                 words = page.extract_words(
                     x_tolerance=self._char_spacing_x,
                     y_tolerance=self._char_spacing_y
@@ -183,18 +195,17 @@ class PDFTextProcessor(PDFTextProcessorUtilsBase):
         Returns:
             pd.DataFrame: Updated DataFrame with a 'section' column.
         """
-        current_section = initial_header
-        section_list = []
+        # Create a boolean mask by checking if each row matches a SectionHeader object
+        header_mask = self.df.apply(lambda row: SectionHeader(row["text"], row["color"]) in section_headers, axis=1)
 
-        for _, row in self.df.iterrows():
-            for header in section_headers:
-                if row["text"] == header.text and row["color"] == header.color:
-                    current_section = row["text"]  # Update the section when a new header is found
-                    break  # No need to check further, move to the next row
+        # Initialize `section` with NaN and set only the first row to `initial_header`
+        self.df["section"] = [initial_header] + [pd.NA] * (len(self.df) - 1)
 
-            section_list.append(current_section)
+        # Assign headers where mask is True
+        self.df.loc[header_mask, "section"] = self.df.loc[header_mask, "text"]
 
-        self.df["section"] = section_list
+        # Forward-fill section values
+        self.df["section"] = self.df["section"].ffill()
 
     def generate_table(self, index_list: list[int]):
         """Generates a table using rows extracted from the dataframe"""
