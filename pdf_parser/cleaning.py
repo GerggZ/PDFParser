@@ -27,6 +27,6 @@ def merge_sentences_by_position(df: pd.DataFrame, y_tol=1, x_tol=3.5):
     return pd.DataFrame(merged_rows)
 
 
-def remove_header_footer_text(df: pd.DataFrame, header_height=40, footer_height=800):
+def remove_header_footer_text(df: pd.DataFrame, header_height=55, footer_height=800):
     """ Removes unwanted header/footer text based on y-position. """
     return df[(df["y0"] > header_height) & (df["y0"] < footer_height)].reset_index(drop=True)
