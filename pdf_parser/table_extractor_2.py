@@ -14,7 +14,7 @@ class TableExtractor:
         self.row_text_map = list(zip(df.index, df["text"]))
         self.full_text = "\n".join(text for _, text in self.row_text_map)
 
-    def _find_position(self, regex_tuple):
+    def _find_position_str(self, regex_tuple):
         """Finds the row index of the first match based on the given regex pattern."""
         if not regex_tuple:
             return None
@@ -114,19 +114,39 @@ class TableExtractor:
         idx = bisect.bisect_right(end_idxs, start_idx)
         return end_idxs[idx] if idx < len(end_idxs) else None
 
-    def extract_table(self, start_regex: None | tuple[int, str], end_regex=None | tuple[int, str], drop_regexes=None | list[tuple[int, str]]):
-        """Extracts a table from the DataFrame based on start, end, and drop regex patterns."""
+    def extract_table_dict(
+            self,
+            start_regex_tuple: None | tuple[int, dict[str, int]],
+            end_regex_tuple: None | tuple[int, dict[str, int]],
+            drop_regex_tuples: None | list[tuple[int, dict[str, int]]]
+    ):
         # Convert start_regex and end_regex to dicts if necessary
-        if start_regex is not None:
-            if isinstance(start_regex[1], str):
-                start_regex = (start_regex[0], {start_regex[1]: 1})
-        if end_regex is not None:
-            if isinstance(end_regex[1], str):
-                end_regex = (end_regex[0], {end_regex[1]: 1})
+        if start_regex_tuple is not None:
+            if isinstance(start_regex_tuple[1], str):
+                start_regex = (start_regex_tuple[0], {start_regex_tuple[1]: 1})
+        if end_regex_tuple is not None:
+            if isinstance(end_regex_tuple[1], str):
+                end_regex = (end_regex_tuple[0], {end_regex_tuple[1]: 1})
 
         start_idxs = self._find_position_dict(start_regex)
         end_idxs = self._find_position_dict(end_regex)
 
+        extracted_table = self._extract_tables(start_idxs, end_idxs)
+        return extracted_table
+
+    def extract_table_str(
+            self,
+            start_regex_tuple: None | tuple[int, str],
+            end_regex_tuple: None | tuple[int, str],
+    ):
+        start_idxs = self._find_position_str(start_regex_tuple)
+        end_idxs = self._find_position_str(end_regex_tuple)
+
+        extracted_table = self._extract_tables(start_idxs, end_idxs)
+        return extracted_table
+
+    def _extract_tables(self, start_regex, end_regex, start_idxs: list[int], end_idxs: list[int]):
+        """Extracts a table from the DataFrame based on start, end, and drop regex patterns."""
         extracted_dfs = []
         for start_idx in start_idxs:
             end_idx = self._find_end_idx(end_idxs, start_idx)
@@ -140,22 +160,11 @@ class TableExtractor:
             else:
                 continue  # If no start/end criteria, there was nothing to extract :)
 
-            if drop_regexes:
-                drop_indices = set()
-                for offset, pattern in drop_regexes:
-                    for idx, text in extracted_df["text"].items():
-                        if re.search(pattern, text):
-                            new_idx = self._apply_offset(idx, offset)
-                            if new_idx is not None:
-                                drop_indices.add(new_idx)
-
-                extracted_df = extracted_df.drop(index=drop_indices, errors="ignore")
-
             extracted_dfs.append(extracted_df)
 
         return extracted_dfs
 
-# Wrapper function to use the class
+
 def extract_table_from_dataframe(df, start_regex=None, end_regex=None, drop_regexes=None):
     extractor = TableExtractor(df)
     return extractor.extract_table(start_regex, end_regex, drop_regexes)

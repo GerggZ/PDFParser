@@ -84,7 +84,7 @@ class PDFTextProcessorUtilsBase:
 
     def text(self):
         """Returns the text of the dataframe, with returns between lines"""
-        return self.__str__(self)
+        return self.__str__()
 
     def get_dataframe(self):
         """Returns the processed DataFrame."""
