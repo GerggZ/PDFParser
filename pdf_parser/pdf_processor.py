@@ -308,4 +308,6 @@ class PDFTextProcessor(PDFTextProcessorUtilsBase):
         return -7
 
 
-
+def pdf_image_extractor(page, bbox):
+    cropped_image = page.to_image().crop(bbox)
+    cropped_image.show()

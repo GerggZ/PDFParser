@@ -19,15 +19,23 @@ class TableExtractor:
         if not regex_tuple:
             return None
 
+        matched_idxs = []
         offset, pattern = regex_tuple
         match = re.search(pattern, self.full_text, re.DOTALL)  # Multi-line search
-        if match:
+
+        for match in re.finditer(pattern, self.full_text, re.DOTALL):
             start_pos = match.start()
-            if start_pos < len(self.char_to_row):  # Ensure valid mapping
-                found_row = self.char_to_row[start_pos]  # Convert character position to row index
-                row_index = self._apply_offset(found_row, offset)
-                return row_index
-        return None
+            # Compute the cumulative length to map the character position back to a row.
+            current = 0
+            for row_index, text in self.row_text_map:
+                row_length = len(text)
+                if start_pos < current + row_length:
+                    matched_idxs.append(self._apply_offset(row_index, offset))
+                    break  # Found the matching row for this match, go to next match.
+                # Add one for the newline that was added when building full_text.
+                current += row_length + 1
+
+        return matched_idxs
 
     def _find_position_dict(self, regex_tuple):
         """
@@ -111,6 +119,8 @@ class TableExtractor:
         return self.df.index[new_loc] if 0 <= new_loc < len(self.df) else None
 
     def _find_end_idx(self, end_idxs, start_idx):
+        if end_idxs is None:
+            return None
         idx = bisect.bisect_right(end_idxs, start_idx)
         return end_idxs[idx] if idx < len(end_idxs) else None
 
@@ -123,16 +133,16 @@ class TableExtractor:
         # Convert start_regex and end_regex to dicts if necessary
         if start_regex_tuple is not None:
             if isinstance(start_regex_tuple[1], str):
-                start_regex = (start_regex_tuple[0], {start_regex_tuple[1]: 1})
+                start_regex_tuple = (start_regex_tuple[0], {start_regex_tuple[1]: 1})
         if end_regex_tuple is not None:
             if isinstance(end_regex_tuple[1], str):
-                end_regex = (end_regex_tuple[0], {end_regex_tuple[1]: 1})
+                end_regex_tuple = (end_regex_tuple[0], {end_regex_tuple[1]: 1})
 
-        start_idxs = self._find_position_dict(start_regex)
-        end_idxs = self._find_position_dict(end_regex)
+        start_idxs = self._find_position_dict(start_regex_tuple)
+        end_idxs = self._find_position_dict(end_regex_tuple)
 
-        extracted_table = self._extract_tables(start_idxs, end_idxs)
-        return extracted_table
+        extracted_tables = self._extract_tables(start_regex_tuple, end_regex_tuple, start_idxs, end_idxs)
+        return extracted_tables
 
     def extract_table_str(
             self,
@@ -142,7 +152,7 @@ class TableExtractor:
         start_idxs = self._find_position_str(start_regex_tuple)
         end_idxs = self._find_position_str(end_regex_tuple)
 
-        extracted_table = self._extract_tables(start_idxs, end_idxs)
+        extracted_table = self._extract_tables(start_regex_tuple, end_regex_tuple, start_idxs, end_idxs)
         return extracted_table
 
     def _extract_tables(self, start_regex, end_regex, start_idxs: list[int], end_idxs: list[int]):
